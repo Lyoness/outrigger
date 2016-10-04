@@ -239,49 +239,57 @@ class EventMaker(object):
             V(exon_a).upstream) \
             .intersection(V(exon_b).downstream)
 
-    def skipped_exon(self):
+    def find_events(self, event_type='SE'):
         events = {}
 
         progress('Trying out {0} exons ...'.format(self.n_exons))
-        for exon1_i, exon1_name in enumerate(self.exons):
-            self._maybe_print_exon_progress(exon1_i)
 
-            exon23s = list(self.exons_one_junction_downstream(exon1_i))
-            exon23s = self.item_to_region[[self.items[i] for i in exon23s]]
-
-            for exon_a, exon_b in itertools.combinations(exon23s, 2):
-                if not exon_a.overlaps(exon_b):
-                    exon2 = min((exon_a, exon_b), key=lambda x: x._start)
-                    exon3 = max((exon_a, exon_b), key=lambda x: x._start)
-
-                    exon2_i = self.exons.index(exon2.name)
-                    exon3_i = self.exons.index(exon3.name)
-
-                    exon23_junction = list(self.graph.find(
-                        V(exon2_i).upstream).intersection(
-                        V().upstream(exon3_i)))
-                    if len(exon23_junction) > 0:
-                        # Isoform 1 - corresponds to Psi=0. Exclusion of exon2
-                        exon13_junction = self.junctions_between_exons(
-                            exon1_i, exon3_i)
-
-                        # Isoform 2 - corresponds to Psi=1. Inclusion of exon2
-                        exon12_junction = self.junctions_between_exons(
-                            exon1_i, exon2_i)
-
-                        junctions_i = list(itertools.chain(
-                            *[exon12_junction, exon23_junction,
-                              exon13_junction]))
-                        junctions = [self.items[i] for i in junctions_i]
-                        exons = exon1_name, exon2.name, exon3.name
-
-                        events[exons] = junctions
-        events = self.event_dict_to_df(
-            events, exon_names=['exon1', 'exon2', 'exon3'],
-            junction_names=['junction12', 'junction23', 'junction13'])
-        events = self.add_event_id_col(events, 'se')
-        events = self.add_illegal_junctions(events, 'se')
+        events = self.event_dict_to_df(events,
+                               exon_names=['exon1', 'exon2', 'exon3',
+                                           'exon4'],
+                               junction_names=['junction13',
+                                               'junction34',
+                                               'junction12',
+                                               'junction24'])
+        events = self.add_event_id_col(events, event_type)
+        events = self.add_illegal_junctions(events, event_type)
         return events
+
+    def _skipped_exon(self, exon1_i, exon1_name):
+
+        self._maybe_print_exon_progress(exon1_i)
+
+        exon23s = list(self.exons_one_junction_downstream(exon1_i))
+        exon23s = self.item_to_region[[self.items[i] for i in exon23s]]
+
+        for exon_a, exon_b in itertools.combinations(exon23s, 2):
+            if not exon_a.overlaps(exon_b):
+                exon2 = min((exon_a, exon_b), key=lambda x: x._start)
+                exon3 = max((exon_a, exon_b), key=lambda x: x._start)
+
+                exon2_i = self.exons.index(exon2.name)
+                exon3_i = self.exons.index(exon3.name)
+
+                exon23_junction = list(self.graph.find(
+                    V(exon2_i).upstream).intersection(
+                    V().upstream(exon3_i)))
+                if len(exon23_junction) > 0:
+                    # Isoform 1 - corresponds to Psi=0. Exclusion of exon2
+                    exon13_junction = self.junctions_between_exons(
+                        exon1_i, exon3_i)
+
+                    # Isoform 2 - corresponds to Psi=1. Inclusion of exon2
+                    exon12_junction = self.junctions_between_exons(
+                        exon1_i, exon2_i)
+
+                    junctions_i = list(itertools.chain(
+                        *[exon12_junction, exon23_junction,
+                          exon13_junction]))
+                    junctions = [self.items[i] for i in junctions_i]
+                    exons = exon1_name, exon2.name, exon3.name
+
+                    event = pd.Series(junctions, name=exons)
+        return pd.Series()
 
     def mutually_exclusive_exon(self):
         events = {}
