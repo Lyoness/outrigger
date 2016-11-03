@@ -36,6 +36,7 @@ script:
 
 after_success:
   - which -a curl
+  - echo 'cacert=/etc/ssl/certs/ca-certificates.crt' > ~/.curlrc
   - set -o pipefail
   - /usr/bin/curl --progress-bar https://codecov.io/bash | bash
   - echo $?
